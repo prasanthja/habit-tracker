@@ -1,0 +1,68 @@
+/* General styling */
+body {
+  font-family: Arial, sans-serif;
+  text-align: center;
+  margin: 20px;
+  background-color: #f4f4f9;
+}
+
+#app {
+  max-width: 1000px;
+  margin: auto;
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+h1 {
+  font-size: 36px;
+  color: #4caf50;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+input, button {
+  margin: 10px;
+  padding: 10px;
+  font-size: 16px;
+  border-radius: 4px;
+}
+
+button {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #0056b3;
+}
+
+button#clear-habits {
+  background-color: #dc3545;
+}
+
+button#clear-habits:hover {
+  background-color: #a71d2a;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+
+th, td {
+  border: 1px solid #ddd;
+  padding: 10px;
+  text-align: center;
+}
+
+tr.color1 {
+  background-color: #f9f9f9;
+}
+
+tr.color2 {
+  background-color: #e6f7ff;
+}
