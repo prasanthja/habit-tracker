@@ -3,7 +3,7 @@ const SHEET_NAME = "Habits2025"; // Your sheet name
 const API_KEY = "AIzaSyAKLfJTveVA2s4dvQMzbPNV52BK7O43zAo"; // Your API key
 const BASE_URL = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values`;
 
-// Declare `habits` globally
+// Declare habits globally
 let habits = [];
 
 // Save habits to Google Sheets
@@ -15,11 +15,11 @@ const saveHabitsToSheets = async () => {
     habit.streak,
     habit.longest,
     habit.last7,
-    habit.last30
+    habit.last30,
   ]);
 
   try {
-    await axios.put(
+    const response = await axios.put(
       `${BASE_URL}/${SHEET_NAME}?valueInputOption=RAW&key=${API_KEY}`,
       {
         range: SHEET_NAME,
@@ -27,9 +27,15 @@ const saveHabitsToSheets = async () => {
         values: [["Habit Name", "Dates", "Total", "Streak", "Longest", "Last 7 Days", "Last 30 Days"], ...data],
       }
     );
-    console.log("Habits saved to Google Sheets");
+    console.log("Habits saved to Google Sheets:", response.data);
   } catch (error) {
     console.error("Error saving habits to Google Sheets:", error.response?.data || error.message);
+    console.error("Full error response:", error);
+    if (error.response) {
+      console.error("Error Status:", error.response.status);
+      console.error("Error Data:", error.response.data);
+      console.error("Error Headers:", error.response.headers);
+    }
   }
 };
 
@@ -37,10 +43,10 @@ const saveHabitsToSheets = async () => {
 const loadHabitsFromSheets = async () => {
   try {
     const response = await axios.get(`${BASE_URL}/${SHEET_NAME}?key=${API_KEY}`);
-    const rows = response.data.values;
+    console.log("Google Sheets response:", response.data);
 
+    const rows = response.data.values;
     if (rows && rows.length > 1) {
-      // Load habits if data exists
       habits = rows.slice(1).map(row => ({
         name: row[0],
         dates: JSON.parse(row[1] || "{}"),
@@ -51,21 +57,25 @@ const loadHabitsFromSheets = async () => {
         last30: parseInt(row[6] || 0, 10),
       }));
       generateLayout();
-      console.log("Habits loaded from Google Sheets");
     } else {
-      // Initialize habits as empty if no data
       habits = [];
       console.log("No habits found in Google Sheets.");
     }
   } catch (error) {
     console.error("Error loading habits from Google Sheets:", error.response?.data || error.message);
+    console.error("Full error response:", error);
+    if (error.response) {
+      console.error("Error Status:", error.response.status);
+      console.error("Error Data:", error.response.data);
+      console.error("Error Headers:", error.response.headers);
+    }
   }
 };
 
 // Initialize habits from Google Sheets on page load
 window.onload = loadHabitsFromSheets;
 
-// Save habits whenever a new habit is added
+// Add new habit and save it
 document.getElementById("add-habit").addEventListener("click", async () => {
   console.log("Add Habit button clicked");
 
@@ -87,7 +97,7 @@ document.getElementById("add-habit").addEventListener("click", async () => {
   console.log("Habits saved to Google Sheets");
 });
 
-// Save to Google Sheets after clearing all habits
+// Delete all habits
 document.getElementById("clear-habits").addEventListener("click", async () => {
   if (confirm("Are you sure you want to delete all habits?")) {
     habits = [];
@@ -97,7 +107,7 @@ document.getElementById("clear-habits").addEventListener("click", async () => {
   }
 });
 
-// Generate table layout
+// Generate the habit tracker layout
 const generateLayout = () => {
   const thead = document.querySelector("#habit-table thead tr");
   const tbody = document.querySelector("#habit-table tbody");
@@ -121,10 +131,10 @@ const generateLayout = () => {
         <div>Last 30 days: ${habit.last30 || 0}/30</div>
       </div>
     `;
-    th.querySelector(".delete-habit").addEventListener("click", () => {
+    th.querySelector(".delete-habit").addEventListener("click", async () => {
       if (confirm(`Are you sure you want to delete the habit "${habit.name}"?`)) {
         habits.splice(habitIndex, 1); // Remove habit
-        saveHabitsToSheets(); // Update Sheets
+        await saveHabitsToSheets(); // Update Sheets
         generateLayout(); // Refresh layout
       }
     });
@@ -145,10 +155,10 @@ const generateLayout = () => {
       const td = document.createElement("td");
       const button = document.createElement("button");
       button.className = habit.dates[formattedDate] ? "green" : "red";
-      button.addEventListener("click", () => {
+      button.addEventListener("click", async () => {
         habit.dates[formattedDate] = !habit.dates[formattedDate];
         updateHabitStats(habit, habitIndex);
-        saveHabitsToSheets(); // Save updated data to Sheets
+        await saveHabitsToSheets(); // Save updated data to Sheets
         generateLayout();
       });
       td.appendChild(button);
@@ -159,9 +169,11 @@ const generateLayout = () => {
   }
 };
 
-// Update habit stats
+// Update habit statistics
 const updateHabitStats = (habit, habitIndex) => {
-  let total = 0, streak = 0, longest = 0, last7 = 0, last30 = 0;
+  let total = 0,
+    streak = 0,
+    longest = 0;
 
   const dates = Object.keys(habit.dates).sort((a, b) => new Date(a) - new Date(b));
   dates.forEach(date => {
@@ -177,7 +189,5 @@ const updateHabitStats = (habit, habitIndex) => {
   habit.total = total;
   habit.streak = streak;
   habit.longest = longest;
-  habit.last7 = last7;
-  habit.last30 = last30;
   habits[habitIndex] = habit;
 };
