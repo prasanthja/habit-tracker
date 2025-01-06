@@ -3,6 +3,9 @@ const SHEET_NAME = "Habits2025"; // Your sheet name
 const API_KEY = "AIzaSyAKLfJTveVA2s4dvQMzbPNV52BK7O43zAo"; // Your API key
 const BASE_URL = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values`;
 
+// Declare `habits` globally
+let habits = [];
+
 // Save habits to Google Sheets
 const saveHabitsToSheets = async () => {
   const data = habits.map(habit => [
@@ -26,7 +29,7 @@ const saveHabitsToSheets = async () => {
     );
     console.log("Habits saved to Google Sheets");
   } catch (error) {
-    console.error("Error saving habits to Google Sheets:", error);
+    console.error("Error saving habits to Google Sheets:", error.response?.data || error.message);
   }
 };
 
@@ -35,23 +38,27 @@ const loadHabitsFromSheets = async () => {
   try {
     const response = await axios.get(`${BASE_URL}/${SHEET_NAME}?key=${API_KEY}`);
     const rows = response.data.values;
+
     if (rows && rows.length > 1) {
+      // Load habits if data exists
       habits = rows.slice(1).map(row => ({
         name: row[0],
-        dates: JSON.parse(row[1]),
-        total: parseInt(row[2], 10),
-        streak: parseInt(row[3], 10),
-        longest: parseInt(row[4], 10),
-        last7: parseInt(row[5], 10),
-        last30: parseInt(row[6], 10),
+        dates: JSON.parse(row[1] || "{}"),
+        total: parseInt(row[2] || 0, 10),
+        streak: parseInt(row[3] || 0, 10),
+        longest: parseInt(row[4] || 0, 10),
+        last7: parseInt(row[5] || 0, 10),
+        last30: parseInt(row[6] || 0, 10),
       }));
       generateLayout();
       console.log("Habits loaded from Google Sheets");
     } else {
+      // Initialize habits as empty if no data
+      habits = [];
       console.log("No habits found in Google Sheets.");
     }
   } catch (error) {
-    console.error("Error loading habits from Google Sheets:", error);
+    console.error("Error loading habits from Google Sheets:", error.response?.data || error.message);
   }
 };
 
@@ -60,14 +67,24 @@ window.onload = loadHabitsFromSheets;
 
 // Save habits whenever a new habit is added
 document.getElementById("add-habit").addEventListener("click", async () => {
+  console.log("Add Habit button clicked");
+
   const habitInput = document.getElementById("habit-input");
   const habitName = habitInput.value.trim();
-  if (habitName) {
-    habits.push({ name: habitName, dates: {}, total: 0, streak: 0, longest: 0, last7: 0, last30: 0 });
-    habitInput.value = ""; // Clear input
-    generateLayout();
-    await saveHabitsToSheets(); // Save updated data to Sheets
+  if (!habitName) {
+    console.error("Habit name is empty");
+    return;
   }
+
+  console.log("Habit name entered:", habitName);
+
+  habits.push({ name: habitName, dates: {}, total: 0, streak: 0, longest: 0, last7: 0, last30: 0 });
+  console.log("Habit added to local array:", habits);
+
+  habitInput.value = ""; // Clear input
+  generateLayout();
+  await saveHabitsToSheets(); // Save updated data to Sheets
+  console.log("Habits saved to Google Sheets");
 });
 
 // Save to Google Sheets after clearing all habits
@@ -76,6 +93,7 @@ document.getElementById("clear-habits").addEventListener("click", async () => {
     habits = [];
     generateLayout();
     await saveHabitsToSheets(); // Save empty data to Sheets
+    console.log("All habits cleared and saved to Google Sheets.");
   }
 });
 
@@ -114,9 +132,8 @@ const generateLayout = () => {
   });
 
   tbody.innerHTML = "";
-  for (let i = 0; i < totalDays; i++) {
-    const date = new Date(startDate);
-    date.setDate(startDate.getDate() + i);
+  for (let i = 0; i < 365; i++) {
+    const date = new Date(new Date("2025-01-01").setDate(i + 1));
     const formattedDate = dateFormatter.format(date);
 
     const row = document.createElement("tr");
@@ -142,7 +159,25 @@ const generateLayout = () => {
   }
 };
 
-// Update habit stats (unchanged from earlier code)
+// Update habit stats
 const updateHabitStats = (habit, habitIndex) => {
-  // Logic to update totals, streaks, and other data
+  let total = 0, streak = 0, longest = 0, last7 = 0, last30 = 0;
+
+  const dates = Object.keys(habit.dates).sort((a, b) => new Date(a) - new Date(b));
+  dates.forEach(date => {
+    if (habit.dates[date]) {
+      total++;
+      streak++;
+      if (streak > longest) longest = streak;
+    } else {
+      streak = 0;
+    }
+  });
+
+  habit.total = total;
+  habit.streak = streak;
+  habit.longest = longest;
+  habit.last7 = last7;
+  habit.last30 = last30;
+  habits[habitIndex] = habit;
 };
