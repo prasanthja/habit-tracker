@@ -1,7 +1,8 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js";
-import { getDatabase, ref, set, push, onValue, remove } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js";
+// Import Firebase functions
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
+import { getDatabase, ref, set, push, onValue, remove } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
 
-// Firebase Configuration
+// Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyA2LV0KjpKw68y7XnQ410HINhm2_PtB_v8",
   authDomain: "habit-tracker-e469f.firebaseapp.com",
@@ -15,108 +16,91 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
+const habitsRef = ref(database, "habits");
 
-const habitTable = document.getElementById("habitTable");
-const addHabitButton = document.getElementById("addHabitButton");
-const deleteAllHabitsButton = document.getElementById("deleteAllHabitsButton");
-const habitNameInput = document.getElementById("habitNameInput");
-const habitsHeader = document.getElementById("habitsHeader");
+// Add a new habit to Firebase
+function addHabit(name) {
+  const habitRef = push(habitsRef);
+  const today = new Date();
+  const formattedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
-let habits = {};
-
-// Function to Generate Dates
-function generateDates() {
-  const startDate = new Date("2025-01-01");
-  const endDate = new Date("2025-12-31");
-  const dates = [];
-  let currentDate = startDate;
-  while (currentDate <= endDate) {
-    dates.push(
-      currentDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-    );
-    currentDate.setDate(currentDate.getDate() + 1);
-  }
-  return dates;
-}
-
-// Function to Render the Table
-function renderTable() {
-  habitTable.innerHTML = "";
-  const dates = generateDates();
-  dates.forEach((date, index) => {
-    const row = document.createElement("tr");
-    const dateCell = document.createElement("td");
-    dateCell.textContent = date;
-    row.appendChild(dateCell);
-
-    for (const habitId in habits) {
-      const buttonCell = document.createElement("td");
-      const button = document.createElement("button");
-      button.textContent = " ";
-      button.className = "red"; // Default Red Button
-      button.onclick = () => toggleHabitCompletion(habitId, date, button);
-      buttonCell.appendChild(button);
-      row.appendChild(buttonCell);
-    }
-    habitTable.appendChild(row);
+  set(habitRef, {
+    name: name,
+    createdAt: formattedDate,
+    dates: {
+      [formattedDate]: false,
+    },
   });
 }
 
-// Function to Toggle Habit Completion
-function toggleHabitCompletion(habitId, date, button) {
-  const habitRef = ref(database, `habits/${habitId}/dates/${date}`);
-  const isCompleted = button.classList.contains("green");
-  set(habitRef, !isCompleted)
-    .then(() => {
-      button.classList.toggle("green");
-      button.classList.toggle("red");
-    })
-    .catch((error) => console.error("Error updating habit completion: ", error));
-}
-
-// Function to Fetch Habits
-function fetchHabits() {
-  const habitRef = ref(database, "habits/");
-  onValue(habitRef, (snapshot) => {
-    habits = snapshot.val() || {};
-    habitsHeader.innerHTML = "";
-    for (const habitId in habits) {
-      const habit = habits[habitId];
-      const habitColumn = document.createElement("th");
-      habitColumn.textContent = habit.name;
-      habitsHeader.appendChild(habitColumn);
-    }
-    renderTable();
-  });
-}
-
-// Function to Add a Habit
-function addHabit() {
-  const habitName = habitNameInput.value.trim();
-  if (!habitName) {
-    alert("Please enter a habit name!");
-    return;
-  }
-  const habitRef = ref(database, "habits/");
-  const newHabitRef = push(habitRef);
-  set(newHabitRef, { name: habitName, dates: {} })
-    .then(() => {
-      habitNameInput.value = "";
-    })
-    .catch((error) => console.error("Error adding habit: ", error));
-}
-
-// Function to Delete All Habits
-function deleteAllHabits() {
-  const habitRef = ref(database, "habits/");
+// Delete a specific habit from Firebase
+function deleteHabit(habitId) {
+  const habitRef = ref(database, `habits/${habitId}`);
   remove(habitRef)
-    .then(() => console.log("All habits deleted!"))
-    .catch((error) => console.error("Error deleting habits: ", error));
+    .then(() => {
+      console.log(`Habit ${habitId} deleted successfully`);
+    })
+    .catch((error) => {
+      console.error("Error deleting habit:", error);
+    });
 }
 
-// Event Listeners
-addHabitButton.addEventListener("click", addHabit);
-deleteAllHabitsButton.addEventListener("click", deleteAllHabits);
+// Load habits from Firebase and display in the table
+function loadHabits() {
+  onValue(habitsRef, (snapshot) => {
+    const data = snapshot.val();
+    if (data) {
+      updateTable(data);
+    } else {
+      updateTable({});
+      console.log("No habits found.");
+    }
+  });
+}
 
-// Initial Fetch
-fetchHabits();
+// Update the habit table in the HTML
+function updateTable(habits) {
+  const tableBody = document.getElementById("habitTableBody");
+  tableBody.innerHTML = "";
+
+  Object.keys(habits).forEach((habitId) => {
+    const habit = habits[habitId];
+    const row = document.createElement("tr");
+
+    // Habit Name
+    const nameCell = document.createElement("td");
+    nameCell.textContent = habit.name;
+    row.appendChild(nameCell);
+
+    // Created At
+    const createdAtCell = document.createElement("td");
+    createdAtCell.textContent = habit.createdAt;
+    row.appendChild(createdAtCell);
+
+    // Delete Button
+    const deleteCell = document.createElement("td");
+    const deleteButton = document.createElement("button");
+    deleteButton.textContent = "Delete";
+    deleteButton.classList.add("delete-btn");
+    deleteButton.addEventListener("click", () => {
+      deleteHabit(habitId);
+    });
+    deleteCell.appendChild(deleteButton);
+    row.appendChild(deleteCell);
+
+    tableBody.appendChild(row);
+  });
+}
+
+// Add habit button event listener
+document.getElementById("addHabitButton").addEventListener("click", () => {
+  const habitInput = document.getElementById("habitInput");
+  const habitName = habitInput.value.trim();
+  if (habitName) {
+    addHabit(habitName);
+    habitInput.value = "";
+  }
+});
+
+// Load habits on page load
+loadHabits();
